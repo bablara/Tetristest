@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Tetris</title>
+  <style>
+    body {
+      background: #111;
+      color: white;
+      text-align: center;
+      font-family: Arial;
+    }
+    canvas {
+      background: #222;
+      margin-top: 20px;
+      box-shadow: 0 0 20px #000;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Tetris</h1>
+<p>Score: <span id="score">0</span> | Level: <span id="level">1</span></p>
+<canvas id="game" width="240" height="400"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const scoreEl = document.getElementById("score");
+const levelEl = document.getElementById("level");
+
+const COLS = 12;
+const ROWS = 20;
+const SIZE = 20;
+
+let board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+
+const COLORS = ["", "cyan", "blue", "orange", "yellow", "green", "purple", "red"];
+
+const SHAPES = [
+  [],
+  [[1,1,1,1]],
+  [[2,0,0],[2,2,2]],
+  [[0,0,3],[3,3,3]],
+  [[4,4],[4,4]],
+  [[0,5,5],[5,5,0]],
+  [[0,6,0],[6,6,6]],
+  [[7,7,0],[0,7,7]]
+];
+
+let piece = randomPiece();
+let score = 0;
+let lines = 0;
+let level = 1;
+
+function randomPiece() {
+  const type = Math.floor(Math.random() * 7) + 1;
+  return { shape: SHAPES[type], x: 4, y: 0 };
+}
+
+function drawCell(x, y, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x * SIZE, y * SIZE, SIZE - 1, SIZE - 1);
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // board
+  board.forEach((row, y) => {
+    row.forEach((val, x) => {
+      if (val) drawCell(x, y, COLORS[val]);
+    });
+  });
+
+  // piece
+  piece.shape.forEach((row, y) => {
+    row.forEach((val, x) => {
+      if (val) drawCell(piece.x + x, piece.y + y, COLORS[val]);
+    });
+  });
+}
+
+function collide() {
+  return piece.shape.some((row, y) =>
+    row.some((val, x) => {
+      if (!val) return false;
+      let newX = piece.x + x;
+      let newY = piece.y + y;
+      return (
+        newX < 0 ||
+        newX >= COLS ||
+        newY >= ROWS ||
+        board[newY]?.[newX]
+      );
+    })
+  );
+}
+
+function merge() {
+  piece.shape.forEach((row, y) => {
+    row.forEach((val, x) => {
+      if (val) board[piece.y + y][piece.x + x] = val;
+    });
+  });
+}
+
+function clearLines() {
+  let cleared = 0;
+
+  board = board.filter(row => {
+    if (row.every(cell => cell)) {
+      cleared++;
+      return false;
+    }
+    return true;
+  });
+
+  while (board.length < ROWS) {
+    board.unshift(Array(COLS).fill(0));
+  }
+
+  if (cleared > 0) {
+    lines += cleared;
+    score += cleared * 100;
+    level = Math.floor(lines / 10) + 1;
+
+    scoreEl.textContent = score;
+    levelEl.textContent = level;
+  }
+}
+
+function moveDown() {
+  piece.y++;
+  if (collide()) {
+    piece.y--;
+    merge();
+    clearLines();
+    piece = randomPiece();
+    if (collide()) resetGame();
+  }
+}
+
+function rotate() {
+  const rotated = piece.shape[0].map((_, i) =>
+    piece.shape.map(row => row[i]).reverse()
+  );
+  const old = piece.shape;
+  piece.shape = rotated;
+  if (collide()) piece.shape = old;
+}
+
+function resetGame() {
+  alert("Game Over!");
+  board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+  score = 0;
+  lines = 0;
+  level = 1;
+  scoreEl.textContent = 0;
+  levelEl.textContent = 1;
+  piece = randomPiece();
+}
+
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowLeft") {
+    piece.x--;
+    if (collide()) piece.x++;
+  }
+  if (e.key === "ArrowRight") {
+    piece.x++;
+    if (collide()) piece.x--;
+  }
+  if (e.key === "ArrowDown") moveDown();
+  if (e.key === "ArrowUp") rotate();
+});
+
+function loop() {
+  moveDown();
+  draw();
+}
+
+setInterval(loop, 1000 - level * 80);
+</script>
+
+</body>
+</html>
